@@ -3,22 +3,21 @@ import edu.princeton.cs.algs4.In;
 
 import java.util.*;
 
+// WordNet must be a DAG
 public class WordNet {
 
     private class Synset {
         int id;
-        String[] synset;
-        Synset[] hypernyms;
+        String[] words;
 
-        public Synset(int id, String[] synset) {
+        public Synset(int id, String[] words) {
             this.id = id;
-            this.synset = synset;
+            this.words = words;
         }
     }
 
-    private int root;
-    private List<Integer>[] adj;
-    private Map<String, Synset> nounToSet; // noun => Synset
+    private final List<Integer>[] adj;
+    private final Map<String, List<Integer>> nounToSet; // noun => Synset id
     private Map<Integer, Synset> idToSet; // id => Synset
 
     // constructor takes the name of the two input files
@@ -27,40 +26,28 @@ public class WordNet {
             throw new IllegalArgumentException();
         }
         nounToSet = new HashMap<>();
-        List<Synset> list = new ArrayList<>();
+        idToSet = new HashMap<>();
         In in0 = new In(synsets);
-        int len = 0;
         while (in0.hasNextLine()) {
-            String[] strs = in0.readLine().split(",", 2);
-            String[] tmp = strs[1].split(" ");
-            Synset ss = new Synset(len++, tmp);
-            list.add(ss);
-            for (String str : tmp) {
-                nounToSet.put(str, ss);
+            String[] strs = in0.readLine().split(",");
+            int id = Integer.valueOf(strs[0]);
+            String[] words = strs[1].split(" ");
+            idToSet.put(id, new Synset(id, words));
+            for (String str : words) {
+                if (nounToSet.get(str) == null) {
+                    nounToSet.put(str, new ArrayList<>());
+                }
+                nounToSet.get(str).add(id);
             }
         }
-        adj = new List[len];
-        int[] cnts = new int[len];
+        adj = new List[idToSet.size()];
         In in1 = new In(hypernyms);
         while (in1.hasNextLine()) {
             String[] ids = in1.readLine().split(",");
-            Synset node = list.get(Integer.valueOf(ids[0]));
-            cnts[node.id] += ids.length - 1;
+            Synset node = idToSet.get(Integer.valueOf(ids[0]));
             adj[node.id] = new ArrayList<>();
-            node.hypernyms = new Synset[ids.length-1];
             for (int i = 1; i < ids.length; i++) {
-                int tmp = Integer.valueOf(ids[i]);
-                node.hypernyms[i-1] = list.get(tmp);
-                adj[node.id].add(tmp);
-            }
-        }
-        // choose root
-        root = -1;
-        for (int i = 0; i < cnts.length; i++) {
-            if (cnts[i] == 0 && root == -1) {
-                root = i;
-            } else if (cnts[i] == 0) {
-                throw new IllegalArgumentException();
+                adj[node.id].add(Integer.valueOf(ids[i]));
             }
         }
     }
@@ -84,18 +71,19 @@ public class WordNet {
             throw new IllegalArgumentException();
         }
         Set<Integer> s1 = new HashSet<>(), s2 = new HashSet<>();
-        int a = nounToSet.get(nounA).id, b = nounToSet.get(nounB).id;
-        s1.add(a);
-        s2.add(b);
-        Set<Integer> vis1 = new HashSet<>();
-        Set<Integer> vis2 = new HashSet<>();
+        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
+        s1.addAll(listA);
+        s2.addAll(listB);
+        Set<Integer> vis1 = new HashSet<>(), vis2 = new HashSet<>();
+        vis1.addAll(listA);
+        vis2.addAll(listB);
         boolean sign = true;
         int ans = 0;
         while (!s1.isEmpty() && !s2.isEmpty()) {
             Set<Integer> next = new HashSet<>();
             if (sign) {
                 for (int cur : s1) {
-                    if (s2.contains(cur)) {
+                    if (s2.contains(cur) || vis2.contains(cur)) {
                         return ans;
                     }
                     for (int nx : adj[cur]) {
@@ -133,15 +121,16 @@ public class WordNet {
             throw new IllegalArgumentException();
         }
         Set<Integer> s1 = new HashSet<>(), s2 = new HashSet<>();
-        int a = nounToSet.get(nounA).id, b = nounToSet.get(nounB).id;
-        s1.add(a);
-        s2.add(b);
+        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
+        s1.addAll(listA);
+        s2.addAll(listB);
+        Set<Integer> vis1 = new HashSet<>(), vis2 = new HashSet<>();
+        vis1.addAll(listA);
+        vis2.addAll(listB);
         int[] edgeTo1 = new int[adj.length];
         Arrays.fill(edgeTo1, -1);
         int[] edgeTo2 = new int[adj.length];
         Arrays.fill(edgeTo2, -1);
-        Set<Integer> vis1 = new HashSet<>();
-        Set<Integer> vis2 = new HashSet<>();
         boolean sign = true;
         while (!s1.isEmpty() && !s2.isEmpty()) {
             Set<Integer> next = new HashSet<>();
@@ -199,6 +188,11 @@ public class WordNet {
 
     // do unit testing of this class
     public static void main(String[] args) {
-
+        String str = "sd sdad dasd sd";
+        String[] arr = str.split(" ");
+        System.out.println(arr.length);
+        for (String s : arr) {
+            System.out.println(s);
+        }
     }
 }
