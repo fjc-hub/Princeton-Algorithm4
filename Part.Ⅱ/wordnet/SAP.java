@@ -1,6 +1,7 @@
 import edu.princeton.cs.algs4.BreadthFirstDirectedPaths;
 import edu.princeton.cs.algs4.Digraph;
-import edu.princeton.cs.algs4.In;
+
+import java.util.Iterator;
 
 public class SAP {
 
@@ -26,6 +27,12 @@ public class SAP {
 
     // length of shortest ancestral path between any vertex in v and any vertex in w; -1 if no such path
     public int length(Iterable<Integer> v, Iterable<Integer> w) {
+        if (v == null || w == null) {
+            throw new IllegalArgumentException("variable can not be null");
+        }
+        if (!hasValue(v) || !hasValue(w)) {
+            return -1;
+        }
         BreadthFirstDirectedPaths bfp0 = new BreadthFirstDirectedPaths(digraph, v);
         BreadthFirstDirectedPaths bfp1 = new BreadthFirstDirectedPaths(digraph, w);
         int ca = universal(bfp0, bfp1);
@@ -34,6 +41,12 @@ public class SAP {
 
     // a common ancestor that participates in shortest ancestral path; -1 if no such path
     public int ancestor(Iterable<Integer> v, Iterable<Integer> w) {
+        if (v == null || w == null) {
+            throw new IllegalArgumentException("variable can not be null");
+        }
+        if (!hasValue(v) || !hasValue(w)) {
+            return -1;
+        }
         return universal(new BreadthFirstDirectedPaths(digraph, v), new BreadthFirstDirectedPaths(digraph, w));
     }
 
@@ -53,17 +66,12 @@ public class SAP {
         return ca;
     }
 
+    private boolean hasValue(Iterable<Integer> a) {
+        Iterator<Integer> it = a.iterator();
+        return it.hasNext();
+    }
+
     // do unit testing of this class
     public static void main(String[] args) {
-        In in = new In(args[0]);
-        Digraph G = new Digraph(in);
-        SAP sap = new SAP(G);
-        while (!StdIn.isEmpty()) {
-            int v = StdIn.readInt();
-            int w = StdIn.readInt();
-            int length   = sap.length(v, w);
-            int ancestor = sap.ancestor(v, w);
-            StdOut.printf("length = %d, ancestor = %d\n", length, ancestor);
-        }
     }
 }

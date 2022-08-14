@@ -1,21 +1,32 @@
 
+import edu.princeton.cs.algs4.Digraph;
+import edu.princeton.cs.algs4.DirectedCycle;
 import edu.princeton.cs.algs4.In;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Arrays;
+import java.util.Deque;
+import java.util.ArrayDeque;
+
 
 // WordNet must be a DAG
 public class WordNet {
 
     private class Synset {
         int id;
-        String[] words;
+        String words;
 
-        public Synset(int id, String[] words) {
+        public Synset(int id, String words) {
             this.id = id;
             this.words = words;
         }
     }
 
+    private final SAP sap;
+    private final Digraph digraph;
     private final List<Integer>[] adj;
     private final Map<String, List<Integer>> nounToSet; // noun => Synset id
     private Map<Integer, Synset> idToSet; // id => Synset
@@ -29,10 +40,10 @@ public class WordNet {
         idToSet = new HashMap<>();
         In in0 = new In(synsets);
         while (in0.hasNextLine()) {
-            String[] strs = in0.readLine().split(",");
-            int id = Integer.valueOf(strs[0]);
-            String[] words = strs[1].split(" ");
-            idToSet.put(id, new Synset(id, words));
+            String[] fields = in0.readLine().split(",");
+            int id = Integer.valueOf(fields[0]);
+            idToSet.put(id, new Synset(id, fields[1]));
+            String[] words = fields[1].split(" ");
             for (String str : words) {
                 if (nounToSet.get(str) == null) {
                     nounToSet.put(str, new ArrayList<>());
@@ -40,6 +51,7 @@ public class WordNet {
                 nounToSet.get(str).add(id);
             }
         }
+        digraph = new Digraph(idToSet.size());
         adj = new List[idToSet.size()];
         In in1 = new In(hypernyms);
         while (in1.hasNextLine()) {
@@ -47,7 +59,33 @@ public class WordNet {
             Synset node = idToSet.get(Integer.valueOf(ids[0]));
             adj[node.id] = new ArrayList<>();
             for (int i = 1; i < ids.length; i++) {
-                adj[node.id].add(Integer.valueOf(ids[i]));
+                int w = Integer.valueOf(ids[i]);
+                adj[node.id].add(w);
+                digraph.addEdge(node.id, w);
+            }
+        }
+        // The calling order of these two functions cannot be changed
+        ifCyclic();
+        ifNoRoot();
+        sap = new SAP(digraph);
+    }
+
+    private void ifCyclic() {
+        DirectedCycle cycle = new DirectedCycle(digraph);
+        if (cycle.hasCycle()) {
+            throw new IllegalArgumentException("word net should not have a cycle in it");
+        }
+    }
+
+    // pre-required digraph is DAG, then
+    private void ifNoRoot() {
+        int cnt = 0;
+        for (int i=0; i < digraph.V(); i++) {
+            if (digraph.outdegree(i) == 0) {
+                cnt++;
+                if (cnt >= 2) {
+                    throw new IllegalArgumentException("word net should not have more than one root");
+                }
             }
         }
     }
@@ -65,54 +103,57 @@ public class WordNet {
         return nounToSet.containsKey(word);
     }
 
-    // distance between nounA and nounB (defined below)
-    public int distance(String nounA, String nounB) {
-        if (!isNoun(nounA) || !isNoun(nounB)) {
-            throw new IllegalArgumentException();
-        }
-        Set<Integer> s1 = new HashSet<>(), s2 = new HashSet<>();
-        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
-        s1.addAll(listA);
-        s2.addAll(listB);
-        Set<Integer> vis1 = new HashSet<>(), vis2 = new HashSet<>();
-        vis1.addAll(listA);
-        vis2.addAll(listB);
-        boolean sign = true;
-        int ans = 0;
-        while (!s1.isEmpty() && !s2.isEmpty()) {
-            Set<Integer> next = new HashSet<>();
-            if (sign) {
-                for (int cur : s1) {
-                    if (s2.contains(cur) || vis2.contains(cur)) {
-                        return ans;
-                    }
-                    for (int nx : adj[cur]) {
-                        if (!vis1.contains(nx)) {
-                            next.add(nx);
-                            vis1.add(nx);
-                        }
-                    }
-                }
-                s1 = next;
-            } else {
-                for (int cur : s2) {
-                    if (s1.contains(cur)) {
-                        return ans;
-                    }
-                    for (int nx : adj[cur]) {
-                        if (!vis2.contains(nx)) {
-                            next.add(nx);
-                            vis2.add(nx);
-                        }
-                    }
-                }
-                s2 = next;
+    // distance between nounA and nounB
+    // can't use two-direction BFS on Digraph to query shortest path like on undirected graph
+    // https://oi-wiki.org/search/bidirectional/
+//    public int distance(String nounA, String nounB) {
+//        if (!isNoun(nounA) || !isNoun(nounB)) {
+//            throw new IllegalArgumentException();
+//        }
+//        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
+//        int[][] dist = new int[2][idToSet.size()]; // mark node from an end
+//        Arrays.fill(dist[0], -1);
+//        Arrays.fill(dist[1], -1);
+//        for (int id : listA) {
+//            dist[0][id] = 0; // mark this node as 0
+//        }
+//        for (int id : listB) {
+//            dist[1][id] = 0; // mark this node as 1
+//        }
+//        bfsDistTo(listA, dist[0]);
+//        bfsDistTo(listB, dist[1]);
+//        int ans = Integer.MAX_VALUE;
+//        for (int i = 0; i < dist[0].length; i++) {
+//            if (dist[0][i] != -1 && dist[1][i] != -1 && dist[0][i] + dist[1][i] < ans) {
+//                ans = dist[0][i] + dist[1][i];
+//            }
+//        }
+//        return ans;
+//    }
+//
+//    // distTo has already init
+//    private void bfsDistTo(List<Integer> start, int[] distTo) {
+//        Deque<Integer> deque = new ArrayDeque<>();
+//        deque.addAll(start);
+//        while (!deque.isEmpty()) {
+//            int cur = deque.poll();
+//            for (int next : adj[cur]) {
+//                if (distTo[next] != -1) {
+//                    continue;
+//                }
+//                distTo[next] = distTo[cur] + 1;
+//                deque.offer(next);
+//            }
+//        }
+//    }
+
+        public int distance(String nounA, String nounB) {
+            if (!isNoun(nounA) || !isNoun(nounB)) {
+                throw new IllegalArgumentException();
             }
-            ans++;
-            sign = !sign;
+            return sap.length(nounToSet.get(nounA), nounToSet.get(nounB));
         }
-        throw new RuntimeException("00???????????????00");
-    }
+
 
     // a synset (second field of synsets.txt) that is the common ancestor of nounA and nounB
     // in a shortest ancestral path (defined below)
@@ -120,79 +161,14 @@ public class WordNet {
         if (!isNoun(nounA) || !isNoun(nounB)) {
             throw new IllegalArgumentException();
         }
-        Set<Integer> s1 = new HashSet<>(), s2 = new HashSet<>();
-        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
-        s1.addAll(listA);
-        s2.addAll(listB);
-        Set<Integer> vis1 = new HashSet<>(), vis2 = new HashSet<>();
-        vis1.addAll(listA);
-        vis2.addAll(listB);
-        int[] edgeTo1 = new int[adj.length];
-        Arrays.fill(edgeTo1, -1);
-        int[] edgeTo2 = new int[adj.length];
-        Arrays.fill(edgeTo2, -1);
-        boolean sign = true;
-        while (!s1.isEmpty() && !s2.isEmpty()) {
-            Set<Integer> next = new HashSet<>();
-            if (sign) {
-                for (int cur : s1) {
-                    if (s2.contains(cur)) {
-                        String ans = Integer.toString(cur);
-                        for (int l = edgeTo1[cur]; l != -1; l = edgeTo1[l]) {
-                            ans = l + "-" + ans;
-                        }
-                        for (int r = edgeTo2[cur]; r != -1; r = edgeTo2[r]) {
-                            ans = ans + "-" + r;
-                        }
-                        return ans;
-                    }
-                    for (int nx : adj[cur]) {
-                        if (!vis1.contains(nx)) {
-                            next.add(nx);
-                            vis1.add(nx);
-                        }
-                        if (edgeTo1[nx] == -1) {
-                            edgeTo1[nx] = cur;
-                        }
-                    }
-                }
-                s1 = next;
-            } else {
-                for (int cur : s2) {
-                    if (s1.contains(cur)) {
-                        String ans = Integer.toString(cur);
-                        for (int l = edgeTo1[cur]; l != -1; l = edgeTo1[l]) {
-                            ans = l + "-" + ans;
-                        }
-                        for (int r = edgeTo2[cur]; r != -1; r = edgeTo2[r]) {
-                            ans = ans + "-" + r;
-                        }
-                        return ans;
-                    }
-                    for (int nx : adj[cur]) {
-                        if (!vis2.contains(nx)) {
-                            next.add(nx);
-                            vis2.add(nx);
-                        }
-                        if (edgeTo2[nx] == -1) {
-                            edgeTo2[nx] = cur;
-                        }
-                    }
-                }
-                s2 = next;
-            }
-            sign = !sign;
-        }
-        throw new RuntimeException("11???????????????11");
+        return idToSet.get(sap.ancestor(nounToSet.get(nounA), nounToSet.get(nounB))).words;
     }
 
     // do unit testing of this class
     public static void main(String[] args) {
-        String str = "sd sdad dasd sd";
-        String[] arr = str.split(" ");
-        System.out.println(arr.length);
-        for (String s : arr) {
-            System.out.println(s);
-        }
+        WordNet wn = new WordNet("synsets.txt", "hypernyms.txt");
+        System.out.println(wn.distance("Turkic_language", "glyceric_acid"));
+//        WordNet wn = new WordNet("synsets8.txt", "hypernyms8WrongBFS.txt");
+//        System.out.println(wn.distance("a", "e"));
     }
 }
