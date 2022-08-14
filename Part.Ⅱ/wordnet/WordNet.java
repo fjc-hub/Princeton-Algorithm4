@@ -2,14 +2,13 @@
 import edu.princeton.cs.algs4.Digraph;
 import edu.princeton.cs.algs4.DirectedCycle;
 import edu.princeton.cs.algs4.In;
+import edu.princeton.cs.algs4.Queue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Arrays;
-import java.util.Deque;
-import java.util.ArrayDeque;
+import java.util.Iterator;
 
 
 // WordNet must be a DAG
@@ -27,7 +26,6 @@ public class WordNet {
 
     private final SAP sap;
     private final Digraph digraph;
-    private final List<Integer>[] adj;
     private final Map<String, List<Integer>> nounToSet; // noun => Synset id
     private Map<Integer, Synset> idToSet; // id => Synset
 
@@ -52,15 +50,12 @@ public class WordNet {
             }
         }
         digraph = new Digraph(idToSet.size());
-        adj = new List[idToSet.size()];
         In in1 = new In(hypernyms);
         while (in1.hasNextLine()) {
             String[] ids = in1.readLine().split(",");
             Synset node = idToSet.get(Integer.valueOf(ids[0]));
-            adj[node.id] = new ArrayList<>();
             for (int i = 1; i < ids.length; i++) {
                 int w = Integer.valueOf(ids[i]);
-                adj[node.id].add(w);
                 digraph.addEdge(node.id, w);
             }
         }
@@ -104,71 +99,92 @@ public class WordNet {
     }
 
     // distance between nounA and nounB
-    // can't use two-direction BFS on Digraph to query shortest path like on undirected graph
+    // can't use bidirectional BFS on Digraph to query shortest path like on undirected graph
     // https://oi-wiki.org/search/bidirectional/
-//    public int distance(String nounA, String nounB) {
-//        if (!isNoun(nounA) || !isNoun(nounB)) {
-//            throw new IllegalArgumentException();
-//        }
-//        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
-//        int[][] dist = new int[2][idToSet.size()]; // mark node from an end
-//        Arrays.fill(dist[0], -1);
-//        Arrays.fill(dist[1], -1);
-//        for (int id : listA) {
-//            dist[0][id] = 0; // mark this node as 0
-//        }
-//        for (int id : listB) {
-//            dist[1][id] = 0; // mark this node as 1
-//        }
-//        bfsDistTo(listA, dist[0]);
-//        bfsDistTo(listB, dist[1]);
-//        int ans = Integer.MAX_VALUE;
-//        for (int i = 0; i < dist[0].length; i++) {
-//            if (dist[0][i] != -1 && dist[1][i] != -1 && dist[0][i] + dist[1][i] < ans) {
-//                ans = dist[0][i] + dist[1][i];
-//            }
-//        }
-//        return ans;
-//    }
-//
-//    // distTo has already init
-//    private void bfsDistTo(List<Integer> start, int[] distTo) {
-//        Deque<Integer> deque = new ArrayDeque<>();
-//        deque.addAll(start);
-//        while (!deque.isEmpty()) {
-//            int cur = deque.poll();
-//            for (int next : adj[cur]) {
-//                if (distTo[next] != -1) {
-//                    continue;
-//                }
-//                distTo[next] = distTo[cur] + 1;
-//                deque.offer(next);
-//            }
-//        }
-//    }
-
-        public int distance(String nounA, String nounB) {
-            if (!isNoun(nounA) || !isNoun(nounB)) {
-                throw new IllegalArgumentException();
-            }
-            return sap.length(nounToSet.get(nounA), nounToSet.get(nounB));
+    public int distance(String nounA, String nounB) {
+        if (!isNoun(nounA) || !isNoun(nounB)) {
+            throw new IllegalArgumentException();
         }
+        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
+        int[][] dist = new int[2][idToSet.size()]; // mark node from an end
+        boolean[][] mark = new boolean[2][idToSet.size()];
+        BFS_Path(listA, dist[0], mark[0]);
+        BFS_Path(listB, dist[1], mark[1]);
+        int ans = Integer.MAX_VALUE;
+        for (int i = 0; i < dist[0].length; i++) {
+            if (mark[0][i] && mark[1][i] && dist[0][i] + dist[1][i] < ans) {
+                ans = dist[0][i] + dist[1][i];
+            }
+        }
+        return ans;
+    }
 
+    private void BFS_Path(List<Integer> start, int[] distTo, boolean[] mark) {
+        Queue<Integer> q = new Queue<>();
+        for (int v : start) {
+            distTo[v] = 0; // mark this node as 0
+            mark[v] = true;
+            q.enqueue(v);
+        }
+        while(!q.isEmpty()) {
+            int v = q.dequeue();
 
-    // a synset (second field of synsets.txt) that is the common ancestor of nounA and nounB
-    // in a shortest ancestral path (defined below)
+            for(int w : digraph.adj(v)) {
+                if (mark[w]) {
+                    continue;
+                }
+                mark[w] = true;
+                distTo[w] = distTo[v] + 1;
+                q.enqueue(w);
+            }
+        }
+    }
+
     public String sap(String nounA, String nounB) {
         if (!isNoun(nounA) || !isNoun(nounB)) {
             throw new IllegalArgumentException();
         }
-        return idToSet.get(sap.ancestor(nounToSet.get(nounA), nounToSet.get(nounB))).words;
+        List<Integer> listA = nounToSet.get(nounA), listB = nounToSet.get(nounB);
+        int[][] dist = new int[2][idToSet.size()]; // mark node from an end
+        boolean[][] mark = new boolean[2][idToSet.size()];
+        BFS_Path(listA, dist[0], mark[0]);
+        BFS_Path(listB, dist[1], mark[1]);
+        int min = Integer.MAX_VALUE;
+        int ca = -1;
+        for (int i = 0; i < digraph.V(); i++) {
+            if (mark[0][i] && mark[1][i]) {
+                int tmp = dist[0][i] + dist[1][i];
+                if (tmp < min) {
+                    min = tmp;
+                    ca = i;
+                }
+            }
+        }
+        return idToSet.get(ca).words;
     }
+
+
+
+//        public int distance(String nounA, String nounB) {
+//            if (!isNoun(nounA) || !isNoun(nounB)) {
+//                throw new IllegalArgumentException();
+//            }
+//            return sap.length(nounToSet.get(nounA), nounToSet.get(nounB));
+//        }
+
+
+    // a synset (second field of synsets.txt) that is the common ancestor of nounA and nounB
+    // in a shortest ancestral path (defined below)
+//    public String sap(String nounA, String nounB) {
+//        if (!isNoun(nounA) || !isNoun(nounB)) {
+//            throw new IllegalArgumentException();
+//        }
+//        return idToSet.get(sap.ancestor(nounToSet.get(nounA), nounToSet.get(nounB))).words;
+//    }
 
     // do unit testing of this class
     public static void main(String[] args) {
         WordNet wn = new WordNet("synsets.txt", "hypernyms.txt");
         System.out.println(wn.distance("Turkic_language", "glyceric_acid"));
-//        WordNet wn = new WordNet("synsets8.txt", "hypernyms8WrongBFS.txt");
-//        System.out.println(wn.distance("a", "e"));
     }
 }

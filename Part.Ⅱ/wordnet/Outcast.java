@@ -1,8 +1,6 @@
 import edu.princeton.cs.algs4.In;
 import edu.princeton.cs.algs4.StdOut;
 
-import java.util.Arrays;
-
 public class Outcast {
 
     private final WordNet wordNet;
@@ -23,16 +21,16 @@ public class Outcast {
                 sum[i] += wordNet.distance(nouns[i], nouns[j]);
             }
         }
-        StdOut.println(Arrays.toString(sum) + ", " + Arrays.toString(nouns));
-        int min = 0;
-        for (int i = 0; i < nouns.length; i++) {
-            if (sum[i] < sum[min]) {
-                min = i;
+        int idx = 0;
+        for (int i = 1; i < sum.length; i++) {
+            if (sum[i] > sum[idx]) {
+                idx = i;
             }
         }
-        return nouns[min];
+        return nouns[idx];
     }
 
+    // client routine
     public static void main(String[] args) {
         WordNet wordnet = new WordNet(args[0], args[1]);
         Outcast outcast = new Outcast(wordnet);
