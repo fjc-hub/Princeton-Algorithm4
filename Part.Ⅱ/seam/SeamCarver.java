@@ -16,21 +16,15 @@ public class SeamCarver {
         if (picture == null) {
             throw new IllegalArgumentException();
         }
-        mutate(picture);
-    }
-
-    private int getSquDiffRGB(int c0, int r0, int c1, int r1) {
-        int rgb0 = picture.getRGB(c0, r0);
-        int rgb1 = picture.getRGB(c1, r1);
-        int r = Math.abs(((rgb0 & GetRed) >> 16) - ((rgb1 & GetRed) >> 16));
-        int g = Math.abs(((rgb0 & GetGreen) >> 8) - ((rgb1 & GetGreen) >> 8));
-        int b = Math.abs((rgb0 & GetBlue) - (rgb1 & GetBlue));
-        return r*r + g*g + b*b;
+        Picture pic = new Picture(picture); //prevent instance variable picture from being changed
+        mutate(pic);
     }
 
     // current picture
     public Picture picture() {
-        return picture;
+        // pay attention !!!
+        // prevent instance variable picture from being changed by client of this method picture();
+        return new Picture(picture);
     }
 
     // width of current picture
@@ -48,14 +42,11 @@ public class SeamCarver {
         if (x < 0 || x >= width || y < 0 || y >= height) {
             throw new IllegalArgumentException();
         }
-        return grid[y][x];
+        return grid[x][y];
     }
 
     // sequence of indices for horizontal seam
     public int[] findHorizontalSeam() {
-        if (height <= 1) {
-            throw new IllegalArgumentException();
-        }
         double[][] distTo = new double[width][height];
         int[][] offset = new int[width][height]; //similar to edgeTo
         for (int c = 1; c < width; c++) {
@@ -88,9 +79,6 @@ public class SeamCarver {
 
     // sequence of indices for vertical seam
     public int[] findVerticalSeam() {
-        if (width <= 1) {
-            throw new IllegalArgumentException();
-        }
         double[][] distTo = new double[width][height];
         int[][] offset = new int[width][height]; //similar to edgeTo
         for (int r = 1; r < height; r++) {
@@ -133,11 +121,17 @@ public class SeamCarver {
 
     // remove horizontal seam from current picture
     public void removeHorizontalSeam(int[] seam) {
-        if (seam == null || seam.length != width) {
+        if (seam == null || seam.length != width || height <= 1) {
             throw new IllegalArgumentException();
         }
         Picture pic = new Picture(width, height-1);
         for (int c = 0; c < width; c++) {
+            if (seam[c] < 0 || seam[c] >= height) {
+                throw new IllegalArgumentException("Seam out range");
+            }
+            if (c > 0 && Math.abs(seam[c] - seam[c-1]) > 1) {
+                throw new IllegalArgumentException("two adjacent entries differ by more than 1");
+            }
             for (int r = 0; r < seam[c]; r++) {
                 pic.set(c, r, picture.get(c, r));
             }
@@ -146,16 +140,21 @@ public class SeamCarver {
             }
         }
         mutate(pic);
-        picture.show();
     }
 
     // remove vertical seam from current picture
     public void removeVerticalSeam(int[] seam) {
-        if (seam == null || seam.length != height) {
+        if (seam == null || seam.length != height || width <= 1) {
             throw new IllegalArgumentException();
         }
         Picture pic = new Picture(width-1, height);
         for (int r = 0; r < height; r++) {
+            if (seam[r] < 0 || seam[r] >= width) {
+                throw new IllegalArgumentException("Seam Out range");
+            }
+            if (r > 0 && Math.abs(seam[r] - seam[r-1]) > 1) {
+                throw new IllegalArgumentException("two adjacent entries differ by more than 1");
+            }
             for (int c = 0; c < seam[r]; c++) {
                 pic.set(c, r, picture.get(c, r));
             }
@@ -164,7 +163,6 @@ public class SeamCarver {
             }
         }
         mutate(pic);
-        picture.show();
     }
 
     private void mutate(Picture picture) {
@@ -179,14 +177,21 @@ public class SeamCarver {
                     grid[i][j] = MAX_ENERGY;
                 } else {
                     grid[i][j] = Math.sqrt(
-                            getSquDiffRGB(i, j, i-1, j) +
-                            getSquDiffRGB(i, j, i+1, j) +
-                            getSquDiffRGB(i, j, i, j-1) +
-                            getSquDiffRGB(i, j, i, j-1)
+                            getSquDiffRGB(i+1, j, i-1, j) +
+                            getSquDiffRGB(i, j+1, i, j-1)
                     );
                 }
             }
         }
+    }
+
+    private int getSquDiffRGB(int c0, int r0, int c1, int r1) {
+        int rgb0 = picture.getRGB(c0, r0);
+        int rgb1 = picture.getRGB(c1, r1);
+        int r = Math.abs(((rgb0 & GetRed) >> 16) - ((rgb1 & GetRed) >> 16));
+        int g = Math.abs(((rgb0 & GetGreen) >> 8) - ((rgb1 & GetGreen) >> 8));
+        int b = Math.abs((rgb0 & GetBlue) - (rgb1 & GetBlue));
+        return r*r + g*g + b*b;
     }
 
     //  unit testing (optional)
