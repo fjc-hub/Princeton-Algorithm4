@@ -3,3 +3,6 @@ out
 *.iml
 *.*.iml
 *.*.*.iml
+.zip
+*.zip
+*.*.zip
