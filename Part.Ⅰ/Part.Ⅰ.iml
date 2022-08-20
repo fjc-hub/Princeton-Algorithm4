@@ -8,6 +8,10 @@
       <sourceFolder url="file://$MODULE_DIR$/CollinearPoints" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Percolation" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Queues" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/Percolation/.idea/fileTemplates/code" />
+      <excludeFolder url="file://$MODULE_DIR$/Percolation/.idea/fileTemplates/j2ee" />
+      <excludeFolder url="file://$MODULE_DIR$/Queues/.idea/fileTemplates/code" />
+      <excludeFolder url="file://$MODULE_DIR$/Queues/.idea/fileTemplates/j2ee" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
