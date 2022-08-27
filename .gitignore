@@ -6,3 +6,4 @@ out
 .zip
 *.zip
 *.*.zip
+.DS_Store

@@ -129,10 +129,11 @@ public class BoggleSolver {
             return;
         }
         isVis[x][y] = true;
-        path.push(ch);
+        path.addLast(ch);
         if (ch == 'Q') {
+            // assert node != null
             node = node.next['U'-'A'];
-            path.push('U');
+            path.addLast('U');
             if (node == null) { // prune again
                 return;
             }
@@ -146,9 +147,9 @@ public class BoggleSolver {
             int dx = x + off[0], dy = y + off[1];
             dfs(node, dx, dy, board, path, isVis, marked, list);
         }
-        char pop = path.pop();
-        if (pop == 'U' && !path.isEmpty() && path.peekFirst() == 'Q') {
-            path.pop();
+        char pop = path.removeLast();
+        if (pop == 'U' && !path.isEmpty() && path.peekLast() == 'Q') {
+            path.removeLast();
         }
         isVis[x][y] = false;
     }
@@ -158,7 +159,7 @@ public class BoggleSolver {
         for (char ch : path) {
             sb.append(ch);
         }
-        return sb.reverse().toString();
+        return sb.toString();
     }
 
     // Returns the score of the given word if it is in the dictionary, zero otherwise.
