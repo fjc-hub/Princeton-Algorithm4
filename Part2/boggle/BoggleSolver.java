@@ -108,7 +108,7 @@ public class BoggleSolver {
     public Iterable<String> getAllValidWords(BoggleBoard board) {
         int m = board.rows(), n = board.cols();
         List<String> list = new ArrayList<>();
-        Set<TriesNode> marked = new HashSet<>(); //去重
+        Set<TriesNode> marked = new HashSet<>(); //avoid return distinct path(equal to remove distinct string)
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
                 dfs(root, i, j, board, new ArrayDeque<>(), new boolean[m][n], marked, list);
@@ -125,33 +125,43 @@ public class BoggleSolver {
         char ch = board.getLetter(x, y);
         int tmp = ch - 'A';
         node = node.next[tmp];
-        if (node == null) { //pruning
+        if (node == null) { //pruning 0
             return;
         }
+        path.addLast(ch); //  must be placed under pruning 0' return statement, avoid adding more to path
         isVis[x][y] = true;
-        path.addLast(ch);
         if (ch == 'Q') {
-            // assert node != null
-            node = node.next['U'-'A'];
-            path.addLast('U');
-            if (node == null) { // prune again
+            // consider the Q got from board as Qu
+            TriesNode node0 = node.next['U'-'A'];
+            if (node0 == null) { // pruning 1
+//                return; // dangerous, add one more character 'ch'
+                isVis[x][y] = false; // be careful
+                path.removeLast(); // be careful,too
                 return;
             }
-        }
-
-        if (node.isEnd && node.len >= 3 && !marked.contains(node)) {
-            list.add(pathToString(path));
-            marked.add(node);
-        }
-        for (int[] off : offset) {
-            int dx = x + off[0], dy = y + off[1];
-            dfs(node, dx, dy, board, path, isVis, marked, list);
-        }
-        char pop = path.removeLast();
-        if (pop == 'U' && !path.isEmpty() && path.peekLast() == 'Q') {
+            path.addLast('U'); //  must be placed under pruning 1' return statement, avoid adding more to path
+            if (node0.isEnd && node0.len >= 3 && !marked.contains(node0)) {
+                list.add(pathToString(path));
+                marked.add(node0);
+            }
+            for (int[] off : offset) {
+                int dx = x + off[0], dy = y + off[1];
+                dfs(node0, dx, dy, board, path, isVis, marked, list);
+            }
             path.removeLast();
+        } else {
+            if (node.isEnd && node.len >= 3 && !marked.contains(node)) {
+                list.add(pathToString(path));
+                marked.add(node);
+            }
+            for (int[] off : offset) {
+                int dx = x + off[0], dy = y + off[1];
+                dfs(node, dx, dy, board, path, isVis, marked, list);
+            }
         }
+        // release operation of BackTrace (回溯的资源释放操作, so be careful return operation above)
         isVis[x][y] = false;
+        path.removeLast();
     }
 
     private String pathToString(Deque<Character> path) {
