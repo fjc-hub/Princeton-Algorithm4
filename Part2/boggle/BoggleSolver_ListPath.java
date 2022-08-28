@@ -1,11 +1,13 @@
 import java.util.Set;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import edu.princeton.cs.algs4.In;
 import edu.princeton.cs.algs4.StdOut;
 
-public class BoggleSolver {
+public class BoggleSolver_ListPath {
 
     private static final int[][] offset = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
 
@@ -14,15 +16,12 @@ public class BoggleSolver {
         int len;
         int score; // record scores
         boolean isEnd;
-//        TriesNode prev;
-        String string;
         TriesNode[] next;
 
         public TriesNode() {
             len = 0;
             score = 0;
             isEnd = false;
-            string = "";
             next = new TriesNode[26];
         }
     }
@@ -37,9 +36,7 @@ public class BoggleSolver {
             int tmp = ch - 'A';
             len++;
             if (point.next[tmp] == null) {
-                TriesNode newNode = new TriesNode();
-                newNode.string = point.string + ch;
-                point.next[tmp] = newNode;
+                point.next[tmp] = new TriesNode();
             }
             point = point.next[tmp];
         }
@@ -100,7 +97,7 @@ public class BoggleSolver {
 
     // Initializes the data structure using the given array of strings as the dictionary.
     // (You can assume each word in the dictionary contains only the uppercase letters A through Z.)
-    public BoggleSolver(String[] dictionary) {
+    public BoggleSolver_ListPath(String[] dictionary) {
         root = new TriesNode();
         for (String word : dictionary) {
             insert(word);
@@ -114,14 +111,14 @@ public class BoggleSolver {
         Set<TriesNode> marked = new HashSet<>(); //avoid return distinct path(equal to remove distinct string)
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                dfs(root, i, j, board, new boolean[m][n], marked, list);
+                dfs(root, i, j, board, new ArrayDeque<>(), new boolean[m][n], marked, list);
             }
         }
         return list;
     }
 
     // recursive semantics:
-    private void dfs(TriesNode node, int x, int y, BoggleBoard board, boolean[][] isVis, Set<TriesNode> marked, List<String> list) {
+    private void dfs(TriesNode node, int x, int y, BoggleBoard board, Deque<Character> path, boolean[][] isVis, Set<TriesNode> marked, List<String> list) {
         if (x < 0 || x >= board.rows() || y < 0 || y >= board.cols() || isVis[x][y] || node == null) {
             return;
         }
@@ -131,6 +128,7 @@ public class BoggleSolver {
         if (node == null) { //pruning 0
             return;
         }
+        path.addLast(ch); //  must be placed under pruning 0' return statement, avoid adding more to path
         isVis[x][y] = true;
         if (ch == 'Q') {
             // consider the Q got from board as Qu
@@ -138,30 +136,41 @@ public class BoggleSolver {
             if (node0 == null) { // pruning 1
 //                return; // dangerous, add one more character 'ch'
                 isVis[x][y] = false; // be careful
+                path.removeLast(); // be careful,too
                 return;
             }
+            path.addLast('U'); //  must be placed under pruning 1' return statement, avoid adding more to path
             if (node0.isEnd && node0.len >= 3 && !marked.contains(node0)) {
-                list.add(node0.string);
+                list.add(pathToString(path));
                 marked.add(node0);
             }
             for (int[] off : offset) {
                 int dx = x + off[0], dy = y + off[1];
-                dfs(node0, dx, dy, board, isVis, marked, list);
+                dfs(node0, dx, dy, board, path, isVis, marked, list);
             }
+            path.removeLast();
         } else {
             if (node.isEnd && node.len >= 3 && !marked.contains(node)) {
-                list.add(node.string);
+                list.add(pathToString(path));
                 marked.add(node);
             }
             for (int[] off : offset) {
                 int dx = x + off[0], dy = y + off[1];
-                dfs(node, dx, dy, board, isVis, marked, list);
+                dfs(node, dx, dy, board, path, isVis, marked, list);
             }
         }
         // release operation of BackTrace (回溯的资源释放操作, so be careful return operation above)
         isVis[x][y] = false;
+        path.removeLast();
     }
 
+    private String pathToString(Deque<Character> path) {
+        StringBuilder sb = new StringBuilder();
+        for (char ch : path) {
+            sb.append(ch);
+        }
+        return sb.toString();
+    }
 
     // Returns the score of the given word if it is in the dictionary, zero otherwise.
     // (You can assume the word contains only the uppercase letters A through Z.)
@@ -176,7 +185,7 @@ public class BoggleSolver {
     public static void main(String[] args) {
         In in = new In(args[0]);
         String[] dictionary = in.readAllStrings();
-        BoggleSolver solver = new BoggleSolver(dictionary);
+        BoggleSolver_ListPath solver = new BoggleSolver_ListPath(dictionary);
         BoggleBoard board = new BoggleBoard(args[1]);
         int score = 0;
         for (String word : solver.getAllValidWords(board)) {
