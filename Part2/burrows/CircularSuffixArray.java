@@ -13,12 +13,6 @@ public class CircularSuffixArray {
         }
         len = s.length();
         index = new int[len];
-//        // generate all suffixes by String.substring and concatenate (too slow, 输入较大二进制文件会成为bottleneck)
-//        String[] original = new String[len];
-//        for (int i = 0; i < len; i++) {
-//            index[i] = i;
-//            original[i] = s.substring(i) + s.substring(0, i); // O(string.length)
-//        }
 
         // using a single starting index to represent suffix
         int[] startIndex = new int[len];
@@ -27,27 +21,42 @@ public class CircularSuffixArray {
             startIndex[i] = i;
         }
 
-        // string radix sort (every element is length-fixed in suffixes array)
+        // string radix sort (MSD algorithm)
         int[] aux = new int[len];
-        for (int i = len-1; i >= 0; i--) { // loop columns
-            // sort column i
-            int[] count = new int[RADIX+1];
-            for (int v : index) {
-                count[s.charAt((i + startIndex[v]) % len)+1]++;
-            }
-            for (int j = 1; j < count.length; j++) {
-                count[j] += count[j-1];
-            }
-            for (int v : index) {
-                int idx = s.charAt((i + startIndex[v]) % len);
-                aux[count[idx]] = v;
-                count[idx]++;
-            }
-            for (int j = 0; j < index.length; j++) {
-                index[j] = aux[j];
+        msd_sort(s, startIndex, 0, 0, index.length-1, aux);
+    }
+
+    // this MSD implementation can not be capable of variable-length string
+    private void msd_sort(String str, int[] startIndex, int d, int x, int y, int[] aux) {
+        // assert x, y in range of index array
+        if (x >= y || str.length() <= d) {
+            return ;
+        }
+        int[] count = new int[RADIX+1];
+        for (int i = x; i <= y; i++) {
+            count[str.charAt((startIndex[index[i]] + d) % str.length()) + 1]++;
+        }
+        for (int i = 1; i < count.length; i++) {
+            count[i] += count[i-1];
+        }
+        for (int i = x; i <= y; i++) {
+            int ch = str.charAt((startIndex[index[i]] + d) % str.length());
+            aux[count[ch]++] = index[i];
+        }
+        for (int i = x; i <= y; i++) {
+            index[i] = aux[i-x];
+        }
+        // recursively msd_sort
+        int start = -1, end = 0;
+        for (int i = 0; i < count.length; i++) {
+            start = end;
+            end = count[i];
+            if (start < end) { // simple pruning
+                msd_sort(str, startIndex, d+1, x + start, x + end - 1, aux);
             }
         }
     }
+
 
     // length of s
     public int length() {
@@ -64,10 +73,27 @@ public class CircularSuffixArray {
 
     // unit testing (required)
     public static void main(String[] args) {
-        String str = "ABRACADABRA!";
-        CircularSuffixArray csa = new CircularSuffixArray(str);
+//        String str = "ABRACADABRA!";
+//        CircularSuffixArray csa = new CircularSuffixArray(str);
+//        System.out.println(csa.length());
+//        for (int i = 0; i < str.length(); i++) {
+//            System.out.print(csa.index(i)+", ");
+//        }
+//        System.out.println();
+
+        String str = "491a00341600053b3e07";
+        String str2 = "00341600053b3e07491a";
+        String str5 = "00053b3e07491a003416";
+        String result = new String();
+        char[] charArray = str.toCharArray();
+        for(int i = 0; i < charArray.length; i=i+2) {
+            String st = ""+charArray[i]+""+charArray[i+1];
+            char ch = (char)Integer.parseInt(st, 16);
+            result = result + ch;
+        }
+        CircularSuffixArray csa = new CircularSuffixArray(result);
         System.out.println(csa.length());
-        for (int i = 0; i < str.length(); i++) {
+        for (int i = 0; i < result.length(); i++) {
             System.out.print(csa.index(i)+", ");
         }
         System.out.println();
